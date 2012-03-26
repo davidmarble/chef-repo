@@ -1,0 +1,88 @@
+Vagrant::Config.run do |config|
+ 
+    config.vm.customize ["modifyvm", :id, 
+                         "--memory", "1024", 
+                         "--name", "Example"]
+
+    # For debugging
+    #config.vm.boot_mode = :gui
+    
+    config.vm.host_name = "example"
+    config.vm.box = "box-name"
+    config.vm.box_url = "http://example.com/vagrant-box-file.box"
+  
+    # Assign this VM to a host only network IP, allowing you to access it
+    # via the IP.
+    # config.vm.network "33.33.33.10"
+
+    # Forward a port from the guest to the host, which allows for outside
+    # computers to access the VM, whereas host only networking does not.
+    # SSH
+    config.vm.forward_port(22, 2222)
+
+    # Share an additional folder to the guest VM. The first argument is
+    # an identifier, the second is the path on the guest to mount the
+    # folder, and the third is the path on the host to the actual folder.
+    config.vm.share_folder("example", "/var/www/example/live/", ".")
+
+    # Get dev's name and email from local .gitconfig if exists
+    dev_name = "vagrant"
+    dev_email = "ops@example.com"
+    if FileTest.exists?(File.expand_path("~/.gitconfig"))
+        begin
+            File.foreach(File.expand_path("~/.gitconfig")).each_with_index do |line, i|
+                if line =~ /name.*=/
+                    dev_name = "#{line}".gsub(/.*?name\s*=\s*/, "").strip
+                elsif line =~ /email.*=/
+                    dev_email = "#{line}".gsub(/.*?email\s*=\s*/, "").strip
+                end
+            end
+        rescue
+            dev_name = "vagrant"
+            dev_email = "ops@example.com"
+        end
+    end
+    
+    # See http://vagrantup.com/docs/provisioners/chef_solo.html
+    config.vm.provision :chef_solo do |chef|
+        # chef.provisioning_path = "/etc/chef"
+        
+        # For debugging
+        #chef.log_level = :debug
+        
+        # Specify recipes
+        # chef.recipe_url = "http://files.vagrantup.com/getting_started/cookbooks.tar.gz"
+        # chef.add_recipe "mysql"
+
+        chef.cookbooks_path = "chef/cookbooks"
+        # chef.data_bags_path = "chef/databags"
+        chef.roles_path = "chef/roles"
+        chef.add_role "database-server"
+        chef.add_role "app-server"
+
+        # Override attributes defined in roles
+        chef.json.merge!({
+            "using_vagrant" => {
+                # webapp cookbook: Don't try to clone the repo, because we're 
+                # using the local machine's shared directory
+                "use_local_repo" => true
+            },
+            "additional_deploy_root_group_members" => ["vagrant"],
+            # Make sure vagrant gets fresh copies of .aliases & .bash_profile
+            "additional_users" => {
+                "vagrant" => {
+                    "full_name" => dev_name,
+                    "email" => dev_email,
+                    "ssh_agent" => true                    
+                }
+            },
+            "sysctl" => {
+                "shmmax_mb" => "512"
+            },
+            "sudo" => {
+                "users" => ["vagrant"],
+                "passwordless_users" => ["vagrant"]
+            }
+        })
+    end
+end
