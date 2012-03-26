@@ -16,7 +16,7 @@ to convert metadata.rb to metadata.json in cookbooks.
 
 * Add your cookbooks to cookbooks/ or incorporate them with git submodules.
 * At the moment, do *not* use data_bags. The bugs I experienced with Vagrant 
-0.9 may be fixed, but I haven't tried yet. Instead, incorporate necessary  
+0.9 may be fixed, but I haven't tried yet. Instead, incorporate necessary 
 parameters into your roles configurations.
 * Add .json files to roles/ for specific server setups, such as 
 database-server.json or app-server.json. For Vagrant-specific setups, you can 
